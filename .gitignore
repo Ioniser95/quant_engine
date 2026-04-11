@@ -1,3 +1,14 @@
+# Python
 venv/
 __pycache__/
 *.pyc
+
+# Database file, should not be tracked in version control.
+quant_engine.db
+
+# Node / React
+node_modules/
+.env
+
+# OS generated files (Optional but good practice)
+.DS_Store
