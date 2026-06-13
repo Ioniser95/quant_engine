@@ -46,7 +46,7 @@ async def scan_market_bulk(tickers: str = Query(..., description="Comma-separate
         }
 
     # Vectorized Price Download
-    df = yf.download(ticker_list, period="1y", progress=False)
+    df = yf.download(ticker_list, period="5y", progress=False)
     if df.empty: return {"status": "error", "message": "Failed to fetch data"}
 
     closes = df['Close']

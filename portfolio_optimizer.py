@@ -7,7 +7,7 @@ def fetch_price_data(tickers):
     """Fetches 1 year of daily close prices for the given tickers."""
     # Add .NS suffix if not present since it's the Indian market
     yf_tickers = [t if t.endswith(".NS") else f"{t}.NS" for t in tickers]
-    data = yf.download(yf_tickers, period="1y", progress=False)['Close']
+    data = yf.download(yf_tickers, period="5y", progress=False)['Close']
     
     # If only 1 ticker was passed (edge case), yf returns a Series. Convert to DataFrame.
     if isinstance(data, pd.Series):
