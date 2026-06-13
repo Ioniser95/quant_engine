@@ -25,7 +25,10 @@ async def close_db_pool():
         print("✅ Database connection pool closed")
 
 async def get_db():
+    global pool
     if not pool:
-        raise Exception("Database pool not initialized")
+        await init_db_pool()
+        if not pool:
+            raise Exception("Database pool failed to initialize")
     async with pool.acquire() as conn:
         yield conn
