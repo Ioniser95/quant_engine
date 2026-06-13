@@ -391,6 +391,42 @@ h3 { font-size: 1rem; font-weight: 600; line-height: 1.4; }
   .main-content {
     padding: 24px 20px;
   }
+  .app-layout {
+    flex-direction: column !important;
+  }
+  .app-sidebar {
+    width: 100% !important;
+    min-width: 100% !important;
+    height: auto !important;
+    flex-direction: row !important;
+    align-items: center;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 10px 16px !important;
+    position: sticky !important;
+    top: 0;
+    z-index: 50;
+  }
+  .app-sidebar-toggle {
+    display: none !important;
+  }
+  .app-sidebar-logo {
+    padding: 0 !important;
+  }
+  .app-sidebar-nav {
+    flex-direction: row !important;
+    flex: 1;
+    overflow-x: auto;
+    padding: 0 10px !important;
+  }
+  .app-sidebar-nav a {
+    padding: 8px 12px !important;
+    white-space: nowrap;
+  }
+  .app-sidebar-bottom {
+    padding: 0 !important;
+    border-top: none !important;
+  }
 }
 @media (max-width: 480px) {
   .main-content {

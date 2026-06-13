@@ -13,10 +13,10 @@ export default function Layout() {
   ];
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-root)' }}>
+    <div className="app-layout" style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-root)' }}>
       
       {/* ── Sidebar ── */}
-      <aside style={{
+      <aside className="app-sidebar" style={{
         width: collapsed ? '72px' : '240px', 
         minWidth: collapsed ? '72px' : '240px',
         background: 'var(--bg-root)',
@@ -27,6 +27,7 @@ export default function Layout() {
       }}>
         {/* Toggle Button */}
         <button
+          className="app-sidebar-toggle"
           onClick={() => setCollapsed(!collapsed)}
           style={{
             position: 'absolute', right: '-12px', top: '28px',
@@ -41,7 +42,7 @@ export default function Layout() {
         </button>
 
         {/* Logo */}
-        <div style={{ 
+        <div className="app-sidebar-logo" style={{ 
           padding: collapsed ? '24px 0 20px' : '24px 20px 20px', 
           display: 'flex', alignItems: 'center', gap: '10px',
           justifyContent: collapsed ? 'center' : 'flex-start',
@@ -62,7 +63,7 @@ export default function Layout() {
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <nav className="app-sidebar-nav" style={{ flex: 1, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {navItems.map((item) => (
             <NavLink
               key={item.name}
@@ -87,7 +88,7 @@ export default function Layout() {
         </nav>
 
         {/* Bottom */}
-        <div style={{ padding: '12px 10px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'center' }}>
+        <div className="app-sidebar-bottom" style={{ padding: '12px 10px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'center' }}>
           <button
             className="btn-secondary"
             title={collapsed ? "Sign out" : undefined}
