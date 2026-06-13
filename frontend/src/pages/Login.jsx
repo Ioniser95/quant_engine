@@ -20,7 +20,7 @@ export default function Login({ onLogin }) {
     try {
       if (viewType === 'changePassword') {
         // Step 1: Verify old password works
-        const loginRes = await fetch('http://localhost:8000/api/auth/login', {
+        const loginRes = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -31,7 +31,7 @@ export default function Login({ onLogin }) {
         // Step 2: Use forgot-password to reset, then update with new password
         // We use a workaround: call forgot-password to reset, then immediately
         // we need a proper change-password endpoint. For now, let's call it.
-        const changeRes = await fetch('http://localhost:8000/api/auth/change-password', {
+        const changeRes = await fetch('/api/auth/change-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, current_password: password, new_password: newPassword })
@@ -56,7 +56,7 @@ export default function Login({ onLogin }) {
         body = { email };
       }
 
-      const res = await fetch(`http://localhost:8000${endpoint}`, {
+      const res = await fetch(`${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)

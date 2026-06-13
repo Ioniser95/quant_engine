@@ -15,13 +15,13 @@ export default function RoboAdvisor() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const uRes = await fetch('http://localhost:8000/api/universe');
+        const uRes = await fetch('/api/universe');
         const uData = await uRes.json();
         setUniverse(uData.universe);
 
         const token = localStorage.getItem('quant_token');
         if (token) {
-          const hRes = await fetch('http://localhost:8000/api/portfolio/holdings', {
+          const hRes = await fetch('/api/portfolio/holdings', {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           const hData = await hRes.json();
@@ -40,7 +40,7 @@ export default function RoboAdvisor() {
     const randomStocks = [...universe].sort(() => 0.5 - Math.random()).slice(0, 15);
     const tickers = randomStocks.map(s => s.ticker).join(',');
     try {
-      const res = await fetch(`http://localhost:8000/api/scan/bulk?tickers=${tickers}`);
+      const res = await fetch(`/api/scan/bulk?tickers=${tickers}`);
       const data = await res.json();
       const top5 = data.data.slice(0, 5);
       const curated = top5.map(stock => ({
@@ -60,7 +60,7 @@ export default function RoboAdvisor() {
     setLoading(true);
     try {
       const token = localStorage.getItem('quant_token');
-      const res = await fetch('http://localhost:8000/api/portfolio/trade', {
+      const res = await fetch('/api/portfolio/trade', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

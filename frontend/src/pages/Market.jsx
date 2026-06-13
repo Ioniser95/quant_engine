@@ -10,7 +10,7 @@ export default function Market() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/universe')
+    fetch('/api/universe')
       .then(res => res.json())
       .then(data => setUniverse(data.universe))
       .catch(err => {
@@ -28,7 +28,7 @@ export default function Market() {
     const tickers = filtered.slice(0, 15).map(s => s.ticker).join(',');
 
     try {
-      const res = await fetch(`http://localhost:8000/api/scan/bulk?tickers=${tickers}`);
+      const res = await fetch(`/api/scan/bulk?tickers=${tickers}`);
       const data = await res.json();
       if (data.status === 'success') {
         setScanResults(data.data);

@@ -16,7 +16,7 @@ export default function Portfolio() {
         const token = localStorage.getItem('quant_token');
         if (!token) throw new Error("No authentication token found. Please log in.");
         
-        const res = await fetch('http://localhost:8000/api/portfolio/holdings', {
+        const res = await fetch('/api/portfolio/holdings', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -51,7 +51,7 @@ export default function Portfolio() {
     
     try {
       const token = localStorage.getItem('quant_token');
-      const res = await fetch('http://localhost:8000/api/portfolio/sell', {
+      const res = await fetch('/api/portfolio/sell', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
