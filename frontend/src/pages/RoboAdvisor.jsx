@@ -10,12 +10,28 @@ export default function RoboAdvisor() {
   const [loading, setLoading] = useState(false);
   const [basket, setBasket] = useState(null);
   const [tradeExecuted, setTradeExecuted] = useState(false);
+  const [cashBalance, setCashBalance] = useState(0);
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/universe')
-      .then(res => res.json())
-      .then(data => setUniverse(data.universe))
-      .catch(err => console.error("Database connection failed:", err));
+    const fetchData = async () => {
+      try {
+        const uRes = await fetch('http://localhost:8000/api/universe');
+        const uData = await uRes.json();
+        setUniverse(uData.universe);
+
+        const token = localStorage.getItem('quant_token');
+        if (token) {
+          const hRes = await fetch('http://localhost:8000/api/portfolio/holdings', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const hData = await hRes.json();
+          setCashBalance(hData.stats?.cash_balance || 0);
+        }
+      } catch(err) {
+        console.error("Data fetch failed:", err);
+      }
+    };
+    fetchData();
   }, []);
 
   const generateBasket = async () => {
@@ -95,9 +111,14 @@ export default function RoboAdvisor() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
           {/* Capital */}
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
-              Capital (₹)
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)' }}>
+                Capital (₹)
+              </label>
+              <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: '600' }}>
+                Available: {fmtINR(cashBalance)}
+              </span>
+            </div>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: '12px', top: '11px', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: '500' }}>₹</span>
               <input

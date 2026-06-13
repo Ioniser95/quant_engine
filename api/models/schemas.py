@@ -23,3 +23,7 @@ class PortfolioRequest(BaseModel):
 
 class TradeReq(BaseModel):
     basket: list
+
+class SellReq(BaseModel):
+    ticker: str
+    shares: int

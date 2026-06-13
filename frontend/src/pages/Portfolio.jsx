@@ -5,7 +5,7 @@ import '../index.css';
 export default function Portfolio() {
   const [data, setData] = useState({
     holdings: [],
-    stats: { invested: 0, current: 0, returns: 0, returnsPct: 0 }
+    stats: { invested: 0, current: 0, returns: 0, returnsPct: 0, cash_balance: 0 }
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -38,6 +38,37 @@ export default function Portfolio() {
   }, []);
 
   const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
+
+  const handleSell = async (ticker, maxShares) => {
+    const qtyStr = window.prompt(`How many shares of ${ticker} would you like to sell? (Max: ${maxShares})`, maxShares);
+    if (!qtyStr) return;
+    
+    const qty = parseInt(qtyStr);
+    if (isNaN(qty) || qty <= 0 || qty > maxShares) {
+      alert("Invalid quantity.");
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('quant_token');
+      const res = await fetch('http://localhost:8000/api/portfolio/sell', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ ticker, shares: qty })
+      });
+      
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.detail || "Failed to sell shares");
+      
+      alert(json.message);
+      window.location.reload();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
 
   if (loading) {
     return (
@@ -73,8 +104,9 @@ export default function Portfolio() {
       </div>
 
       {/* Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
         {[
+          { label: 'Cash Balance', value: fmt(stats.cash_balance || 0), icon: <Wallet size={16} />, color: 'var(--success)' },
           { label: 'Current Value', value: fmt(stats.current), icon: <TrendingUp size={16} />, color: 'var(--accent)' },
           { label: 'Invested', value: fmt(stats.invested), icon: <IndianRupee size={16} />, color: 'var(--text-muted)' },
           { label: 'Total Returns', value: fmt(stats.returns), icon: <BarChart3 size={16} />, color: stats.returns >= 0 ? 'var(--success)' : 'var(--danger)', pct: stats.returnsPct },
@@ -121,6 +153,7 @@ export default function Portfolio() {
                     <th>Avg. Price</th>
                     <th>LTP</th>
                     <th style={{ textAlign: 'right' }}>P&L</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -153,6 +186,15 @@ export default function Portfolio() {
                             {Math.abs(h.pnlPct).toFixed(2)}%
                           </span>
                         </div>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button 
+                          className="btn-secondary" 
+                          style={{ padding: '6px 12px', fontSize: '0.75rem', borderColor: 'var(--danger-muted)', color: 'var(--danger)' }}
+                          onClick={() => handleSell(h.ticker, h.shares)}
+                        >
+                          Sell
+                        </button>
                       </td>
                     </tr>
                   ))}
