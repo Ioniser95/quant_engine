@@ -1,64 +1,112 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { PieChart, Activity, Cpu, LogOut, TrendingUp } from 'lucide-react';
+import { PieChart, Activity, Cpu, LogOut, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import '../index.css';
 
 export default function Layout() {
+  const [collapsed, setCollapsed] = useState(false);
+
   const navItems = [
-    { name: 'My Portfolio', path: '/portfolio', icon: <PieChart size={20} /> },
-    { name: 'Market Scanner', path: '/market', icon: <Activity size={20} /> },
-    { name: 'Robo-Advisor', path: '/advisor', icon: <Cpu size={20} /> },
+    { name: 'Portfolio', path: '/portfolio', icon: <PieChart size={18} /> },
+    { name: 'Market Scanner', path: '/market', icon: <Activity size={18} /> },
+    { name: 'Robo-Advisor', path: '/advisor', icon: <Cpu size={18} /> },
   ];
 
   return (
-    <div style={styles.container}>
-      {/* SIDEBAR */}
-      <aside style={styles.sidebar}>
-        <div style={styles.logoContainer}>
-          <TrendingUp size={24} color="#00D09C" />
-          <h2 style={styles.logoText}>Quant<span style={{color: '#fff'}}>Engine</span></h2>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-root)' }}>
+      
+      {/* ── Sidebar ── */}
+      <aside style={{
+        width: collapsed ? '72px' : '240px', 
+        minWidth: collapsed ? '72px' : '240px',
+        background: 'var(--bg-root)',
+        borderRight: '1px solid var(--border-subtle)',
+        display: 'flex', flexDirection: 'column',
+        transition: 'all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
+        position: 'relative'
+      }}>
+        {/* Toggle Button */}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          style={{
+            position: 'absolute', right: '-12px', top: '28px',
+            width: '24px', height: '24px', borderRadius: '50%',
+            background: 'var(--bg-elevated)', border: '1px solid var(--border-default)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--text-secondary)', cursor: 'pointer', zIndex: 10,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+          }}
+        >
+          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
+
+        {/* Logo */}
+        <div style={{ 
+          padding: collapsed ? '24px 0 20px' : '24px 20px 20px', 
+          display: 'flex', alignItems: 'center', gap: '10px',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          transition: 'all 0.3s ease'
+        }}>
+          <div style={{
+            width: '32px', height: '32px', borderRadius: '9px', flexShrink: 0,
+            background: 'linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <TrendingUp size={16} color="#fff" />
+          </div>
+          {!collapsed && (
+            <span className="fade-in" style={{ fontSize: '1.05rem', fontWeight: '700', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
+              QuantEngine
+            </span>
+          )}
         </div>
 
-        <nav style={styles.nav}>
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {navItems.map((item) => (
-            <NavLink 
-              key={item.name} 
+            <NavLink
+              key={item.name}
               to={item.path}
+              title={collapsed ? item.name : undefined}
               style={({ isActive }) => ({
-                ...styles.navItem,
-                backgroundColor: isActive ? '#1E232E' : 'transparent',
-                color: isActive ? '#00D09C' : '#828F9E',
-                borderRight: isActive ? '3px solid #00D09C' : '3px solid transparent'
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: collapsed ? '12px' : '10px 14px',
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontSize: '0.9rem', fontWeight: isActive ? '600' : '500',
+                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                background: isActive ? 'var(--bg-elevated)' : 'transparent',
+                transition: 'all 0.15s ease',
               })}
             >
-              {item.icon}
-              <span style={{ fontWeight: '600' }}>{item.name}</span>
+              <span style={{ display: 'flex', color: 'inherit' }}>{item.icon}</span>
+              {!collapsed && <span className="fade-in" style={{ whiteSpace: 'nowrap' }}>{item.name}</span>}
             </NavLink>
           ))}
         </nav>
 
-        <div style={styles.logoutWrapper}>
-          <button style={styles.logoutButton} onClick={() => window.location.href = '/'}>
-            <LogOut size={18} /> Logout
+        {/* Bottom */}
+        <div style={{ padding: '12px 10px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'center' }}>
+          <button
+            className="btn-secondary"
+            title={collapsed ? "Sign out" : undefined}
+            style={{ 
+              fontSize: '0.85rem', padding: collapsed ? '10px' : '10px 14px',
+              width: collapsed ? 'auto' : '100%',
+              display: 'flex', justifyContent: 'center'
+            }}
+            onClick={() => { localStorage.removeItem('quant_token'); window.location.href = '/'; }}
+          >
+            <LogOut size={16} /> {!collapsed && <span className="fade-in" style={{ marginLeft: '8px', whiteSpace: 'nowrap' }}>Sign out</span>}
           </button>
         </div>
       </aside>
 
-      {/* MAIN CONTENT AREA (This is where the pages load!) */}
-      <main style={styles.mainContent}>
-        <Outlet /> 
+      {/* ── Main ── */}
+      <main style={{ flex: 1, overflowY: 'auto', padding: '36px 44px', position: 'relative' }}>
+        <Outlet />
       </main>
     </div>
   );
 }
-
-const styles = {
-  container: { display: 'flex', minHeight: '100vh', backgroundColor: '#0B0E14', color: '#fff', fontFamily: 'system-ui, sans-serif' },
-  sidebar: { width: '260px', backgroundColor: '#121620', borderRight: '1px solid #1E232E', display: 'flex', flexDirection: 'column' },
-  logoContainer: { display: 'flex', alignItems: 'center', gap: '10px', padding: '30px 24px', borderBottom: '1px solid #1E232E' },
-  logoText: { margin: 0, fontSize: '1.4rem', color: '#00D09C', fontWeight: '800' },
-  nav: { display: 'flex', flexDirection: 'column', padding: '20px 0', flex: 1 },
-  navItem: { display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 24px', textDecoration: 'none', transition: 'all 0.2s' },
-  logoutWrapper: { padding: '20px 24px', borderTop: '1px solid #1E232E' },
-  logoutButton: { display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: 'transparent', border: 'none', color: '#828F9E', cursor: 'pointer', fontSize: '0.95rem', fontWeight: '600', padding: 0 },
-  mainContent: { flex: 1, overflowY: 'auto', padding: '40px' }
-};

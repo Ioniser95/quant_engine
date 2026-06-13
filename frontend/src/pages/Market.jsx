@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Activity, Filter, AlertCircle } from 'lucide-react';
+import { Search, Activity, Filter, AlertCircle, TrendingUp, BarChart3, Shield } from 'lucide-react';
+import '../index.css';
 
 export default function Market() {
   const [universe, setUniverse] = useState([]);
@@ -8,7 +9,6 @@ export default function Market() {
   const [selectedSector, setSelectedSector] = useState('All');
   const [error, setError] = useState(null);
 
-  // 1. Fetch Universe on Mount
   useEffect(() => {
     fetch('http://localhost:8000/api/universe')
       .then(res => res.json())
@@ -19,22 +19,17 @@ export default function Market() {
       });
   }, []);
 
-  // 2. Execute the Vectorized Scan
   const runMarketScan = async () => {
     setScanning(true);
     setError(null);
-    
-    // Filter by sector, limit to 15 to keep the UI snappy for the MVP
-    const filtered = selectedSector === 'All' 
-      ? universe 
+    const filtered = selectedSector === 'All'
+      ? universe
       : universe.filter(s => s.industry === selectedSector);
-    
     const tickers = filtered.slice(0, 15).map(s => s.ticker).join(',');
 
     try {
       const res = await fetch(`http://localhost:8000/api/scan/bulk?tickers=${tickers}`);
       const data = await res.json();
-      
       if (data.status === 'success') {
         setScanResults(data.data);
       } else {
@@ -47,96 +42,139 @@ export default function Market() {
     }
   };
 
-  // Extract unique industries for the dropdown
   const industries = ['All', ...new Set(universe.map(item => item.industry))];
 
+  const getRiskColor = (risk) => {
+    if (risk > 70) return { bg: 'var(--danger-muted)', color: 'var(--danger)', border: 'rgba(239,68,68,0.2)' };
+    if (risk > 40) return { bg: 'var(--warning-muted)', color: 'var(--warning)', border: 'rgba(234,179,8,0.2)' };
+    return { bg: 'var(--success-muted)', color: 'var(--success)', border: 'rgba(34,197,94,0.2)' };
+  };
+
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-      <header style={{ marginBottom: '30px' }}>
-        <h1 style={{ fontSize: '2rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Activity size={28} color="#00D09C" /> Deep Market Scanner
+    <div style={{ maxWidth: '960px' }}>
+      {/* Header */}
+      <div className="fade-up" style={{ marginBottom: '28px' }}>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+          Market Scanner
         </h1>
-        <p style={{ color: '#828F9E' }}>Run vectorized risk analysis across the NIFTY 500 universe.</p>
-      </header>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
+          Run vectorized risk analysis across the NIFTY 500 universe.
+        </p>
+      </div>
 
       {error && (
-        <div style={{ backgroundColor: 'rgba(229, 57, 53, 0.1)', border: '1px solid #E53935', color: '#E53935', padding: '15px', borderRadius: '8px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <AlertCircle size={20} /> {error}
+        <div className="alert-error" style={{ marginBottom: '20px' }}>
+          <AlertCircle size={15} /> {error}
         </div>
       )}
 
-      {/* --- CONTROL PANEL --- */}
-      <div style={{ backgroundColor: '#121620', padding: '24px', borderRadius: '12px', border: '1px solid #1E232E', marginBottom: '30px', display: 'flex', gap: '20px', alignItems: 'flex-end' }}>
-        
+      {/* Controls */}
+      <div className="card fade-up" style={{ display: 'flex', gap: '14px', alignItems: 'flex-end', marginBottom: '28px', animationDelay: '0.08s' }}>
         <div style={{ flex: 1 }}>
-          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#828F9E', marginBottom: '8px', letterSpacing: '0.5px' }}>
-            <Filter size={12} style={{ marginRight: '4px' }}/> FILTER BY SECTOR
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
+            Sector Filter
           </label>
-          <select 
-            value={selectedSector} 
-            onChange={(e) => setSelectedSector(e.target.value)}
-            style={{ width: '100%', backgroundColor: '#1E232E', color: '#fff', border: '1px solid #2A3143', padding: '14px', borderRadius: '8px', outline: 'none', cursor: 'pointer' }}
-          >
+          <select value={selectedSector} onChange={(e) => setSelectedSector(e.target.value)}>
             {industries.map(ind => <option key={ind} value={ind}>{ind}</option>)}
           </select>
         </div>
-
-        <button 
-          onClick={runMarketScan} 
+        <button
+          className="btn-primary"
+          onClick={runMarketScan}
           disabled={scanning || universe.length === 0}
-          style={{ 
-            backgroundColor: '#00D09C', color: '#121620', border: 'none', padding: '14px 30px', borderRadius: '8px', fontWeight: 'bold', fontSize: '1rem', cursor: scanning ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', opacity: scanning ? 0.7 : 1, transition: 'opacity 0.2s' 
-          }}
+          style={{ width: 'auto', minWidth: '160px', opacity: scanning ? 0.7 : 1 }}
         >
-          {scanning ? 'Crunching Math...' : <><Search size={18} /> Run Analysis</>}
+          {scanning ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite' }}></span>
+              Scanning…
+            </span>
+          ) : (
+            <><Search size={15} /> Run Analysis</>
+          )}
         </button>
       </div>
 
-      {/* --- RESULTS TABLE --- */}
+      {/* Results */}
       {scanResults.length > 0 && (
-        <div style={{ backgroundColor: '#121620', borderRadius: '12px', border: '1px solid #1E232E', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#0B0E14', color: '#828F9E', fontSize: '0.8rem' }}>
-                <th style={{ padding: '16px 24px' }}>TICKER</th>
-                <th style={{ padding: '16px 24px' }}>PRICE RISK (VOL & DD)</th>
-                <th style={{ padding: '16px 24px' }}>FUNDAMENTAL RISK (D/E)</th>
-                <th style={{ padding: '16px 24px', textAlign: 'right' }}>MASTER RISK INDEX</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scanResults.map((stock, i) => (
-                <tr key={stock.Ticker} style={{ borderBottom: i === scanResults.length - 1 ? 'none' : '1px solid #1E232E' }}>
-                  <td style={{ padding: '16px 24px', fontWeight: 'bold', color: '#fff' }}>{stock.Ticker}</td>
-                  <td style={{ padding: '16px 24px', color: '#828F9E' }}>{stock.Price_Risk}%</td>
-                  <td style={{ padding: '16px 24px', color: '#828F9E' }}>{stock.Fund_Risk}%</td>
-                  <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                    <span style={getRiskBadge(stock.Risk)}>
-                      {stock.Risk}
-                    </span>
-                  </td>
+        <div className="fade-up" style={{ animationDelay: '0.15s' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <BarChart3 size={16} style={{ color: 'var(--text-muted)' }} /> Results
+            </h2>
+            <span className="badge badge-accent">{scanResults.length} scanned</span>
+          </div>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Price Risk</th>
+                  <th>Fundamental Risk</th>
+                  <th style={{ textAlign: 'right' }}>Master Index</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {scanResults.map((stock) => {
+                  const rc = getRiskColor(stock.Risk);
+                  return (
+                    <tr key={stock.Ticker}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '32px', height: '32px', borderRadius: '8px',
+                            background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-secondary)', letterSpacing: '0.02em',
+                          }}>
+                            {stock.Ticker.slice(0, 3)}
+                          </div>
+                          <span style={{ fontWeight: '600' }}>{stock.Ticker}</span>
+                        </div>
+                      </td>
+                      <td style={{ color: 'var(--text-secondary)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '60px', height: '4px', borderRadius: '2px', background: 'var(--bg-elevated)', overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.min(stock.Price_Risk, 100)}%`, height: '100%', borderRadius: '2px', background: getRiskColor(stock.Price_Risk).color, transition: 'width 0.5s ease' }}></div>
+                          </div>
+                          <span style={{ fontSize: '0.8rem' }}>{stock.Price_Risk}</span>
+                        </div>
+                      </td>
+                      <td style={{ color: 'var(--text-secondary)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '60px', height: '4px', borderRadius: '2px', background: 'var(--bg-elevated)', overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.min(stock.Fund_Risk, 100)}%`, height: '100%', borderRadius: '2px', background: getRiskColor(stock.Fund_Risk).color, transition: 'width 0.5s ease' }}></div>
+                          </div>
+                          <span style={{ fontSize: '0.8rem' }}>{stock.Fund_Risk}</span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '4px',
+                          padding: '3px 10px', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: '600',
+                          background: rc.bg, color: rc.color, border: `1px solid ${rc.border}`,
+                        }}>
+                          {stock.Risk}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {scanResults.length === 0 && !scanning && !error && (
+        <div className="card fade-up" style={{ textAlign: 'center', padding: '60px 20px', animationDelay: '0.15s' }}>
+          <Activity size={32} style={{ color: 'var(--text-muted)', marginBottom: '14px' }} />
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
+            Select a sector and run an analysis to see risk scores.
+          </p>
         </div>
       )}
     </div>
   );
 }
-
-// Helper function for the Risk Traffic Light system
-const getRiskBadge = (risk) => {
-  const isHigh = risk > 70;
-  const isMed = risk > 40;
-  
-  return {
-    padding: '6px 12px',
-    borderRadius: '20px',
-    fontSize: '0.85rem',
-    fontWeight: 'bold',
-    backgroundColor: isHigh ? 'rgba(229, 57, 53, 0.1)' : isMed ? 'rgba(255, 179, 0, 0.1)' : 'rgba(0, 208, 156, 0.1)',
-    color: isHigh ? '#E53935' : isMed ? '#FFB300' : '#00D09C',
-    border: `1px solid ${isHigh ? 'rgba(229, 57, 53, 0.3)' : isMed ? 'rgba(255, 179, 0, 0.3)' : 'rgba(0, 208, 156, 0.3)'}`
-  };
-};

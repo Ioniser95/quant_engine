@@ -3,22 +3,31 @@ import pandas as pd
 import numpy as np
 import concurrent.futures
 import time
+import sqlite3
 
 
-TARGET_STOCKS = [
-    "ETERNAL.NS", "ATGL.NS", "DCXINDIA.NS", "RELIANCE.NS", "HDFCBANK.NS",
-    "ZOMATO.NS", "AETHER.NS", "TCS.NS", "ICICIBANK.NS", "BHARTIARTL.NS",
-    "SBIN.NS", "INFY.NS", "LICI.NS", "ITC.NS", "HINDUNILVR.NS",
-    "LT.NS", "BAJFINANCE.NS", "HCLTECH.NS", "MARUTI.NS", "SUNPHARMA.NS",
-    "TMPV.NS", "TATASTEEL.NS", "ASIANPAINT.NS", "KOTAKBANK.NS", "TITAN.NS"
-]
-
-def get_fundamental_score(ticker_obj):
+def get_target_stocks_data():
     try:
-        info = ticker_obj.info
-        de_ratio = info.get('debtToEquity', 100) / 100 
-        de_score = (de_ratio / 2.0) * 100 
-        margin = info.get('profitMargins', 0.05)
+        conn = sqlite3.connect('quant_engine.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT ticker, debt_to_equity, profit_margin FROM universe WHERE is_active = 1")
+        # Returns a dictionary mapping ticker to its fundamental data
+        stocks_data = {row[0]: {"de_ratio": row[1] if row[1] is not None else 100.0, 
+                                "margin": row[2] if row[2] is not None else 0.05} 
+                       for row in cursor.fetchall()}
+        conn.close()
+        return stocks_data
+    except Exception as e:
+        print(f"Error connecting to database: {e}")
+        return {}
+
+TARGET_STOCKS_DATA = get_target_stocks_data()
+
+def get_fundamental_score(de_ratio, margin):
+    try:
+        # Convert to the scale used in the math (assuming de_ratio is often returned as a raw number rather than percentage here)
+        de_ratio_scaled = de_ratio / 100.0 if de_ratio > 10 else de_ratio
+        de_score = (de_ratio_scaled / 2.0) * 100 
         margin_score = 100 - (margin * 100 * 2) 
         
         fundamental_risk = (0.6 * de_score) + (0.4 * margin_score)
@@ -26,7 +35,7 @@ def get_fundamental_score(ticker_obj):
     except:
         return 50 
 
-def process_single_stock(ticker):
+def process_single_stock(ticker, fund_data):
     """This function is now designed to be run by an independent worker thread."""
     try:
         t = yf.Ticker(ticker)
@@ -43,7 +52,7 @@ def process_single_stock(ticker):
         price_risk = np.clip(((vol/0.4)*50) + (abs(dd/0.3)*50), 0, 100)
         
         # Fundamental Math
-        fundamental_risk = get_fundamental_score(t)
+        fundamental_risk = get_fundamental_score(fund_data['de_ratio'], fund_data['margin'])
         
         # Master Score
         master_score = (0.5 * price_risk) + (0.5 * fundamental_risk)
@@ -59,7 +68,7 @@ def process_single_stock(ticker):
 
 # --- MAIN EXECUTION PIPELINE ---
 if __name__ == "__main__":
-    print(f"Igniting V4 Multi-Threaded Engine for {len(TARGET_STOCKS)} stocks...")
+    print(f"Igniting V4 Multi-Threaded Engine for {len(TARGET_STOCKS_DATA)} stocks...")
     print("-" * 60)
     
     # Start the stopwatch!
@@ -70,7 +79,7 @@ if __name__ == "__main__":
     # THE MAGIC: Spin up 10 concurrent worker threads
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         # Map our list of stocks to the worker threads
-        future_to_stock = {executor.submit(process_single_stock, stock): stock for stock in TARGET_STOCKS}
+        future_to_stock = {executor.submit(process_single_stock, stock, fund_data): stock for stock, fund_data in TARGET_STOCKS_DATA.items()}
         
         # As each thread finishes its job, grab the result
         for future in concurrent.futures.as_completed(future_to_stock):

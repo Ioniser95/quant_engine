@@ -1,9 +1,8 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
-
-# Swapped TMPV (too new) for ICICIBANK (long history) to ensure data exists
-TEST_STOCKS = ["RELIANCE.NS", "ETERNAL.NS", "HDFCBANK.NS", "ICICIBANK.NS", "AETHER.NS"]
+import concurrent.futures
+import sqlite3
 
 SIMULATION_DATE = "2024-04-01" 
 END_DATE = "2025-04-01"
@@ -26,6 +25,9 @@ def calculate_historical_risk(ticker, sim_date):
         price_risk = np.clip(((vol/0.4)*50) + (abs(dd/0.3)*50), 0, 100)
         
         # 2. Fundamental Math 
+        # TODO: [FLAG - PRODUCTION WARNING] LOOK-AHEAD BIAS
+        # We are using t.info which pulls TODAY'S fundamental data, not the data from the sim_date.
+        # This gives our backtester an unfair advantage. In production, we need a historical fundamental database.
         info = t.info
         de_ratio = info.get('debtToEquity', 100) / 100 
         margin = info.get('profitMargins', 0.05)
@@ -55,11 +57,26 @@ def calculate_historical_risk(ticker, sim_date):
 print(f"🕰️ TIME MACHINE ACTIVATED: Traveling back to {SIMULATION_DATE}...")
 print("-" * 65)
 
+conn = sqlite3.connect('quant_engine.db')
+cursor = conn.cursor()
+cursor.execute("SELECT ticker FROM universe WHERE is_active = 1")
+target_stocks = [row[0] for row in cursor.fetchall()]
+conn.close()
+
+print(f"Testing {len(target_stocks)} active stocks from database...")
+
 results = []
-for stock in TEST_STOCKS:
-    res = calculate_historical_risk(stock, SIMULATION_DATE)
-    if res:
-        results.append(res)
+with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    future_to_stock = {executor.submit(calculate_historical_risk, stock, SIMULATION_DATE): stock for stock in target_stocks}
+    
+    completed = 0
+    for future in concurrent.futures.as_completed(future_to_stock):
+        res = future.result()
+        if res:
+            results.append(res)
+        completed += 1
+        if completed % 50 == 0:
+            print(f"Processed {completed}/{len(target_stocks)} stocks...")
 
 # THE FIX: Check if the list is empty before sorting to prevent KeyError
 if len(results) == 0:
