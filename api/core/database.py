@@ -24,11 +24,18 @@ async def close_db_pool():
         await pool.close()
         print("✅ Database connection pool closed")
 
+from fastapi import HTTPException
 async def get_db():
     global pool
     if not pool:
-        await init_db_pool()
+        try:
+            await init_db_pool()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"DB Init Error: {str(e)}")
         if not pool:
-            raise Exception("Database pool failed to initialize")
-    async with pool.acquire() as conn:
-        yield conn
+            raise HTTPException(status_code=500, detail="Database pool failed to initialize")
+    try:
+        async with pool.acquire() as conn:
+            yield conn
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB Acquire Error: {str(e)}")
