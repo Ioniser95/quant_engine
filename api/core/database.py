@@ -13,7 +13,10 @@ pool = None
 async def init_db_pool():
     global pool
     try:
-        pool = await asyncpg.create_pool(DATABASE_URL)
+        pool = await asyncpg.create_pool(
+            DATABASE_URL,
+            statement_cache_size=0
+        )
         print("Database connection pool created successfully")
     except Exception as e:
         print(f"Failed to connect to database: {e}")
