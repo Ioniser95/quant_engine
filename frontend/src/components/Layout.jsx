@@ -104,8 +104,10 @@ export default function Layout() {
       </aside>
 
       {/* ── Main ── */}
-      <main style={{ flex: 1, overflowY: 'auto', padding: '36px 44px', position: 'relative' }}>
-        <Outlet />
+      <main className="main-content">
+        <div className="main-container">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
