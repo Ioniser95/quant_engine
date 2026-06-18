@@ -87,6 +87,8 @@ async def forgot_password(req: ForgotPasswordReq, db: asyncpg.Connection = Depen
             msg["From"] = f"QuantEngine <{gmail_address}>"
             msg["To"] = req.email
             
+            text = f"Your password has been reset. Your temporary password is: {new_password}\n\nPlease log in and change your password immediately.\n\n- QuantEngine Team"
+            
             html = f"""
             <div style="font-family: sans-serif; padding: 20px;">
                 <h2 style="color: #333;">Password Reset</h2>
@@ -97,6 +99,7 @@ async def forgot_password(req: ForgotPasswordReq, db: asyncpg.Connection = Depen
             </div>
             """
             
+            msg.attach(MIMEText(text, "plain"))
             msg.attach(MIMEText(html, "html"))
             
             server = smtplib.SMTP("smtp.gmail.com", 587)
