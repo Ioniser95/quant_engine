@@ -37,8 +37,21 @@ export default function CandlestickChart({ data, width = '100%', height = 300 })
     if (data && data.length > 0) {
       // Ensure data is sorted by time ascending (TradingView requirement)
       const sortedData = [...data].sort((a, b) => new Date(a.time) - new Date(b.time));
-      candlestickSeries.setData(sortedData);
-      chart.timeScale().fitContent();
+      
+      // Filter out duplicate dates and invalid numbers which cause fatal crashes
+      const uniqueData = [];
+      const seenTimes = new Set();
+      for (const item of sortedData) {
+        if (!seenTimes.has(item.time) && !isNaN(item.open) && !isNaN(item.close)) {
+          seenTimes.add(item.time);
+          uniqueData.push(item);
+        }
+      }
+      
+      if (uniqueData.length > 0) {
+        candlestickSeries.setData(uniqueData);
+        chart.timeScale().fitContent();
+      }
     }
 
     const resizeObserver = new ResizeObserver(entries => {
