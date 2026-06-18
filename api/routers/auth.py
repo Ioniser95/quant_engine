@@ -4,8 +4,11 @@ from api.core.security import get_password_hash, verify_password, create_access_
 from api.core.database import get_db
 import string
 import random
-import resend
 import asyncpg
+import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -73,13 +76,18 @@ async def forgot_password(req: ForgotPasswordReq, db: asyncpg.Connection = Depen
     
     await db.execute("UPDATE users SET hashed_password = $1 WHERE email = $2", hashed_password, req.email)
     
-    resend.api_key = "re_XJW8TeEk_JSSvsB8y95j6cj1mMJuhyAXz"
-    try:
-        resend.Emails.send({
-            "from": "onboarding@resend.dev",
-            "to": req.email,
-            "subject": "QuantEngine: Your Temporary Password",
-            "html": f"""
+    
+    gmail_address = os.environ.get("GMAIL_ADDRESS")
+    gmail_password = os.environ.get("GMAIL_APP_PASSWORD")
+    
+    if gmail_address and gmail_password:
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = "QuantEngine: Your Temporary Password"
+            msg["From"] = f"QuantEngine <{gmail_address}>"
+            msg["To"] = req.email
+            
+            html = f"""
             <div style="font-family: sans-serif; padding: 20px;">
                 <h2 style="color: #333;">Password Reset</h2>
                 <p>Your password has been reset. Your temporary password is:</p>
@@ -88,9 +96,18 @@ async def forgot_password(req: ForgotPasswordReq, db: asyncpg.Connection = Depen
                 <p>- QuantEngine Team</p>
             </div>
             """
-        })
-    except Exception as e:
-        print(f"Failed to send email: {e}")
+            
+            msg.attach(MIMEText(html, "html"))
+            
+            server = smtplib.SMTP("smtp.gmail.com", 587)
+            server.starttls()
+            server.login(gmail_address, gmail_password)
+            server.sendmail(gmail_address, req.email, msg.as_string())
+            server.quit()
+        except Exception as e:
+            print(f"Failed to send email via SMTP: {e}")
+    else:
+        print("GMAIL_ADDRESS or GMAIL_APP_PASSWORD not set in environment variables. Email not sent.")
 
     return {
         "status": "success", 
