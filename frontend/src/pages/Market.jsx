@@ -162,7 +162,7 @@ export default function Market() {
       )}
 
       {/* Controls & Search */}
-      <div className="card fade-up" style={{ display: 'flex', gap: '14px', alignItems: 'flex-end', marginBottom: '28px', animationDelay: '0.08s', position: 'relative' }}>
+      <div className="card fade-up" style={{ display: 'flex', gap: '14px', alignItems: 'flex-end', marginBottom: '28px', animationDelay: '0.08s', position: 'relative', zIndex: 10 }}>
         <div style={{ flex: 2, position: 'relative' }}>
           <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
             Search NSE Stock

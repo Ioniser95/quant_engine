@@ -29,26 +29,48 @@ async def get_active_universe(db: asyncpg.Connection = Depends(get_db)):
     return {"count": len(universe), "universe": universe}
 
 @router.get("/scan/search-ticker")
-async def search_ticker(query: str):
-    """Hits Yahoo Finance autocomplete to resolve company names to NSE tickers."""
+async def search_ticker(query: str, db: asyncpg.Connection = Depends(get_db)):
+    """Hits Yahoo Finance autocomplete to resolve company names to NSE tickers, heavily augmented by local DB."""
     try:
-        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={query}&quotesCount=10"
+        results = []
+        seen_symbols = set()
+        
+        # 1. Search Local Database First (super fast & guaranteed Indian stocks)
+        local_rows = await db.fetch(
+            "SELECT ticker, name FROM universe WHERE ticker ILIKE $1 OR name ILIKE $1 LIMIT 5",
+            f"%{query}%"
+        )
+        for row in local_rows:
+            sym = f"{row['ticker']}.NS"
+            seen_symbols.add(sym)
+            results.append({
+                "symbol": sym,
+                "shortname": row["name"],
+                "longname": row["name"],
+                "exchange": "NSI"
+            })
+
+        # 2. Search Yahoo Finance (ask for 50 results to ensure Indian stocks aren't pushed out by US stocks)
+        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={query}&quotesCount=50"
         headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(url, headers=headers)
         data = response.json()
         
-        results = []
         for quote in data.get('quotes', []):
             exchange = quote.get('exchange', '')
             symbol = quote.get('symbol', '')
             if exchange in ['NSI', 'BSE'] or symbol.endswith('.NS') or symbol.endswith('.BO'):
-                results.append({
-                    "symbol": symbol,
-                    "shortname": quote.get('shortname', ''),
-                    "longname": quote.get('longname', ''),
-                    "exchange": exchange
-                })
-        return {"status": "success", "results": results}
+                if symbol not in seen_symbols:
+                    seen_symbols.add(symbol)
+                    results.append({
+                        "symbol": symbol,
+                        "shortname": quote.get('shortname', ''),
+                        "longname": quote.get('longname', ''),
+                        "exchange": exchange
+                    })
+                    
+        # Return top 10 combined results
+        return {"status": "success", "results": results[:10]}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
