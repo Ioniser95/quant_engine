@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Activity, Filter, AlertCircle, TrendingUp, BarChart3, Shield } from 'lucide-react';
+import { Search, Activity, Filter, AlertCircle, TrendingUp, BarChart3, Shield, ChevronDown, ChevronRight } from 'lucide-react';
+import CandlestickChart from '../components/CandlestickChart';
 import '../index.css';
 
 export default function Market() {
@@ -8,6 +9,10 @@ export default function Market() {
   const [scanning, setScanning] = useState(false);
   const [selectedSector, setSelectedSector] = useState('All');
   const [error, setError] = useState(null);
+  
+  const [expandedTicker, setExpandedTicker] = useState(null);
+  const [tickerHistoryData, setTickerHistoryData] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
     fetch('/api/universe')
@@ -39,6 +44,29 @@ export default function Market() {
       setError("Backend connection failed. Is main.py running?");
     } finally {
       setScanning(false);
+    }
+  };
+
+  const handleRowClick = async (ticker) => {
+    if (expandedTicker === ticker) {
+      setExpandedTicker(null);
+      return;
+    }
+    
+    setExpandedTicker(ticker);
+    setLoadingHistory(true);
+    setTickerHistoryData([]);
+    
+    try {
+      const res = await fetch(`/api/scan/history/${ticker}`);
+      const data = await res.json();
+      if (data.status === 'success') {
+        setTickerHistoryData(data.data);
+      }
+    } catch (err) {
+      console.error("Failed to load chart data", err);
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -117,47 +145,76 @@ export default function Market() {
               <tbody>
                 {scanResults.map((stock) => {
                   const rc = getRiskColor(stock.Risk);
+                  const isExpanded = expandedTicker === stock.Ticker;
+                  
                   return (
-                    <tr key={stock.Ticker}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div style={{
-                            width: '32px', height: '32px', borderRadius: '8px',
-                            background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-secondary)', letterSpacing: '0.02em',
+                    <React.Fragment key={stock.Ticker}>
+                      <tr 
+                        onClick={() => handleRowClick(stock.Ticker)}
+                        style={{ cursor: 'pointer', background: isExpanded ? 'var(--bg-hover)' : 'transparent', transition: 'background 0.2s ease' }}
+                      >
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ color: 'var(--text-muted)' }}>
+                              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            </div>
+                            <div style={{
+                              width: '32px', height: '32px', borderRadius: '8px',
+                              background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-secondary)', letterSpacing: '0.02em',
+                            }}>
+                              {stock.Ticker.slice(0, 3)}
+                            </div>
+                            <span style={{ fontWeight: '600' }}>{stock.Ticker}</span>
+                          </div>
+                        </td>
+                        <td style={{ color: 'var(--text-secondary)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '60px', height: '4px', borderRadius: '2px', background: 'var(--bg-elevated)', overflow: 'hidden' }}>
+                              <div style={{ width: `${Math.min(stock.Price_Risk, 100)}%`, height: '100%', borderRadius: '2px', background: getRiskColor(stock.Price_Risk).color, transition: 'width 0.5s ease' }}></div>
+                            </div>
+                            <span style={{ fontSize: '0.8rem' }}>{stock.Price_Risk}</span>
+                          </div>
+                        </td>
+                        <td style={{ color: 'var(--text-secondary)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '60px', height: '4px', borderRadius: '2px', background: 'var(--bg-elevated)', overflow: 'hidden' }}>
+                              <div style={{ width: `${Math.min(stock.Fund_Risk, 100)}%`, height: '100%', borderRadius: '2px', background: getRiskColor(stock.Fund_Risk).color, transition: 'width 0.5s ease' }}></div>
+                            </div>
+                            <span style={{ fontSize: '0.8rem' }}>{stock.Fund_Risk}</span>
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                            padding: '3px 10px', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: '600',
+                            background: rc.bg, color: rc.color, border: `1px solid ${rc.border}`,
                           }}>
-                            {stock.Ticker.slice(0, 3)}
-                          </div>
-                          <span style={{ fontWeight: '600' }}>{stock.Ticker}</span>
-                        </div>
-                      </td>
-                      <td style={{ color: 'var(--text-secondary)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ width: '60px', height: '4px', borderRadius: '2px', background: 'var(--bg-elevated)', overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.min(stock.Price_Risk, 100)}%`, height: '100%', borderRadius: '2px', background: getRiskColor(stock.Price_Risk).color, transition: 'width 0.5s ease' }}></div>
-                          </div>
-                          <span style={{ fontSize: '0.8rem' }}>{stock.Price_Risk}</span>
-                        </div>
-                      </td>
-                      <td style={{ color: 'var(--text-secondary)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ width: '60px', height: '4px', borderRadius: '2px', background: 'var(--bg-elevated)', overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.min(stock.Fund_Risk, 100)}%`, height: '100%', borderRadius: '2px', background: getRiskColor(stock.Fund_Risk).color, transition: 'width 0.5s ease' }}></div>
-                          </div>
-                          <span style={{ fontSize: '0.8rem' }}>{stock.Fund_Risk}</span>
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '4px',
-                          padding: '3px 10px', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: '600',
-                          background: rc.bg, color: rc.color, border: `1px solid ${rc.border}`,
-                        }}>
-                          {stock.Risk}
-                        </span>
-                      </td>
-                    </tr>
+                            {stock.Risk}
+                          </span>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan="4" style={{ padding: '0 24px 24px 24px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-root)' }}>
+                            {loadingHistory ? (
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px', color: 'var(--text-muted)' }}>
+                                <span style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.2)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite', marginRight: '10px' }}></span>
+                                Loading price history...
+                              </div>
+                            ) : tickerHistoryData.length > 0 ? (
+                              <CandlestickChart data={tickerHistoryData} height={300} />
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px', color: 'var(--text-muted)' }}>
+                                <AlertCircle size={16} style={{ marginRight: '8px' }} />
+                                No historical data available
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>

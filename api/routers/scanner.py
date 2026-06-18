@@ -89,3 +89,35 @@ async def scan_market_bulk(tickers: str = Query(..., description="Comma-separate
 
     sorted_results = sorted(results, key=lambda x: x["Risk"])
     return {"status": "success", "scanned_count": len(sorted_results), "data": sorted_results}
+
+@router.get("/scan/history/{ticker}")
+async def get_ticker_history(ticker: str):
+    # Ensure standard yfinance ticker format (e.g. .NS for India)
+    query_ticker = ticker if ".NS" in ticker else f"{ticker}.NS"
+    try:
+        # Download 3 months of daily data
+        df = yf.download(query_ticker, period="3mo", progress=False)
+        if df.empty:
+            return {"status": "error", "message": "No data found"}
+        
+        # Handle yfinance multi-index columns if present
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [col[0] for col in df.columns]
+
+        df = df.reset_index()
+        date_col = 'Date' if 'Date' in df.columns else 'Datetime' if 'Datetime' in df.columns else df.columns[0]
+        
+        # Format for TradingView Lightweight Charts: { time: 'YYYY-MM-DD', open, high, low, close }
+        chart_data = []
+        for _, row in df.iterrows():
+            chart_data.append({
+                "time": row[date_col].strftime('%Y-%m-%d'),
+                "open": round(float(row['Open']), 2),
+                "high": round(float(row['High']), 2),
+                "low": round(float(row['Low']), 2),
+                "close": round(float(row['Close']), 2)
+            })
+            
+        return {"status": "success", "data": chart_data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
