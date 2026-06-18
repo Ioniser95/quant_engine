@@ -14,6 +14,65 @@ export default function Market() {
   const [tickerHistoryData, setTickerHistoryData] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+
+  // Chart controls
+  const [chartPeriod, setChartPeriod] = useState('3mo');
+  const [chartType, setChartType] = useState('candle');
+
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      setShowSearchDropdown(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await fetch(`/api/scan/search-ticker?query=${searchQuery}`);
+        const data = await res.json();
+        if (data.status === 'success') {
+          setSearchResults(data.results);
+          setShowSearchDropdown(true);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleSelectSearchItem = async (symbol) => {
+    setShowSearchDropdown(false);
+    setSearchQuery('');
+    setScanning(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/scan/analyze-hybrid?ticker=${symbol}`);
+      const data = await res.json();
+      if (data.status === 'success') {
+        const newStock = data.data[0];
+        setScanResults(prev => {
+          const filtered = prev.filter(s => s.Ticker !== newStock.Ticker);
+          return [newStock, ...filtered];
+        });
+        handleRowClick(newStock.Ticker, true);
+      } else {
+        setError(data.message || "Failed to analyze ticker.");
+      }
+    } catch (err) {
+      setError("Backend connection failed.");
+    } finally {
+      setScanning(false);
+    }
+  };
+
   useEffect(() => {
     fetch('/api/universe')
       .then(res => res.json())
@@ -47,8 +106,8 @@ export default function Market() {
     }
   };
 
-  const handleRowClick = async (ticker) => {
-    if (expandedTicker === ticker) {
+  const handleRowClick = async (ticker, forceExpand = false) => {
+    if (expandedTicker === ticker && !forceExpand) {
       setExpandedTicker(null);
       return;
     }
@@ -58,7 +117,7 @@ export default function Market() {
     setTickerHistoryData([]);
     
     try {
-      const res = await fetch(`/api/scan/history/${ticker}`);
+      const res = await fetch(`/api/scan/history/${ticker}?period=${chartPeriod}`);
       const data = await res.json();
       if (data.status === 'success') {
         setTickerHistoryData(data.data);
@@ -69,6 +128,12 @@ export default function Market() {
       setLoadingHistory(false);
     }
   };
+
+  useEffect(() => {
+    if (expandedTicker) {
+      handleRowClick(expandedTicker, true);
+    }
+  }, [chartPeriod]);
 
   const industries = ['All', ...new Set(universe.map(item => item.industry))];
 
@@ -96,8 +161,45 @@ export default function Market() {
         </div>
       )}
 
-      {/* Controls */}
-      <div className="card fade-up" style={{ display: 'flex', gap: '14px', alignItems: 'flex-end', marginBottom: '28px', animationDelay: '0.08s' }}>
+      {/* Controls & Search */}
+      <div className="card fade-up" style={{ display: 'flex', gap: '14px', alignItems: 'flex-end', marginBottom: '28px', animationDelay: '0.08s', position: 'relative' }}>
+        <div style={{ flex: 2, position: 'relative' }}>
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
+            Search NSE Stock
+          </label>
+          <div className="input-group">
+            <Search size={16} />
+            <input 
+              type="text" 
+              placeholder="e.g. Reliance, TCS, Zomato..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => { if (searchResults.length > 0) setShowSearchDropdown(true); }}
+            />
+            {isSearching && <span style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.2)', borderTopColor: 'var(--accent)', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite', position: 'absolute', right: '14px' }}></span>}
+          </div>
+          
+          {showSearchDropdown && searchResults.length > 0 && (
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '8px', marginTop: '4px', zIndex: 50, maxHeight: '250px', overflowY: 'auto', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.5)' }}>
+              {searchResults.map((res, i) => (
+                <div 
+                  key={i} 
+                  onClick={() => handleSelectSearchItem(res.symbol)}
+                  style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                  onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <div>
+                    <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{res.shortname || res.longname}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{res.symbol} &bull; {res.exchange}</div>
+                  </div>
+                  <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
         <div style={{ flex: 1 }}>
           <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
             Sector Filter
@@ -198,13 +300,53 @@ export default function Market() {
                       {isExpanded && (
                         <tr>
                           <td colSpan="4" style={{ padding: '0 24px 24px 24px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-root)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', padding: '0 4px' }}>
+                              <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-elevated)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                                {['3mo', '6mo', '1y', '5y', 'max'].map(period => (
+                                  <button
+                                    key={period}
+                                    onClick={() => setChartPeriod(period)}
+                                    style={{
+                                      background: chartPeriod === period ? 'var(--bg-hover)' : 'transparent',
+                                      color: chartPeriod === period ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                      border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: chartPeriod === period ? '600' : '500'
+                                    }}
+                                  >
+                                    {period === 'max' ? 'ALL' : period.toUpperCase()}
+                                  </button>
+                                ))}
+                              </div>
+                              <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-elevated)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                                <button
+                                  onClick={() => setChartType('candle')}
+                                  style={{
+                                    background: chartType === 'candle' ? 'var(--bg-hover)' : 'transparent',
+                                    color: chartType === 'candle' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                    border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: chartType === 'candle' ? '600' : '500'
+                                  }}
+                                >
+                                  🕯️ Candle
+                                </button>
+                                <button
+                                  onClick={() => setChartType('line')}
+                                  style={{
+                                    background: chartType === 'line' ? 'var(--bg-hover)' : 'transparent',
+                                    color: chartType === 'line' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                    border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: chartType === 'line' ? '600' : '500'
+                                  }}
+                                >
+                                  📈 Line
+                                </button>
+                              </div>
+                            </div>
+                            
                             {loadingHistory ? (
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px', color: 'var(--text-muted)' }}>
                                 <span style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.2)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite', marginRight: '10px' }}></span>
                                 Loading price history...
                               </div>
                             ) : tickerHistoryData.length > 0 ? (
-                              <CandlestickChart data={tickerHistoryData} height={300} />
+                              <CandlestickChart data={tickerHistoryData} type={chartType} height={300} />
                             ) : (
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px', color: 'var(--text-muted)' }}>
                                 <AlertCircle size={16} style={{ marginRight: '8px' }} />

@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import asyncpg
 from api.core.database import get_db
+import requests
 
 router = APIRouter(prefix="/api", tags=["scanner"])
 
@@ -26,6 +27,99 @@ async def get_active_universe(db: asyncpg.Connection = Depends(get_db)):
     rows = await db.fetch("SELECT ticker, name, industry FROM universe WHERE is_active = TRUE")
     universe = [{"ticker": row["ticker"], "name": row["name"], "industry": row["industry"]} for row in rows]
     return {"count": len(universe), "universe": universe}
+
+@router.get("/scan/search-ticker")
+async def search_ticker(query: str):
+    """Hits Yahoo Finance autocomplete to resolve company names to NSE tickers."""
+    try:
+        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={query}&quotesCount=10"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers)
+        data = response.json()
+        
+        results = []
+        for quote in data.get('quotes', []):
+            exchange = quote.get('exchange', '')
+            symbol = quote.get('symbol', '')
+            if exchange in ['NSI', 'BSE'] or symbol.endswith('.NS') or symbol.endswith('.BO'):
+                results.append({
+                    "symbol": symbol,
+                    "shortname": quote.get('shortname', ''),
+                    "longname": quote.get('longname', ''),
+                    "exchange": exchange
+                })
+        return {"status": "success", "results": results}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@router.get("/scan/analyze-hybrid")
+async def analyze_hybrid_ticker(ticker: str, db: asyncpg.Connection = Depends(get_db)):
+    """Analyzes a single ticker. If missing from universe, fetches metadata and inserts it."""
+    ticker = ticker.strip().upper()
+    db_ticker = ticker.replace(".NS", "").replace(".BO", "")
+    
+    # Check if in DB
+    row = await db.fetchrow("SELECT ticker, debt_to_equity, profit_margin FROM universe WHERE ticker = $1", db_ticker)
+    
+    if not row:
+        # Fetch from yfinance
+        try:
+            query_ticker = ticker if ".NS" in ticker or ".BO" in ticker else f"{ticker}.NS"
+            t = yf.Ticker(query_ticker)
+            info = t.info
+            name = info.get('shortName') or info.get('longName') or db_ticker
+            industry = info.get('industry', 'Unknown')
+            de = info.get('debtToEquity', 100)
+            if de is None: de = 100.0
+            margin = info.get('profitMargins', 0.05)
+            if margin is None: margin = 0.05
+            
+            # Insert into DB
+            await db.execute(
+                "INSERT INTO universe (ticker, name, industry, debt_to_equity, profit_margin, is_active) VALUES ($1, $2, $3, $4, $5, TRUE) ON CONFLICT (ticker) DO NOTHING",
+                db_ticker, name, industry, de, margin
+            )
+            fund_data = {"de": de, "margin": margin}
+        except Exception as e:
+            fund_data = {"de": 100.0, "margin": 0.05}
+    else:
+        fund_data = {
+            "de": row["debt_to_equity"] if row["debt_to_equity"] is not None else 100.0, 
+            "margin": row["profit_margin"] if row["profit_margin"] is not None else 0.05
+        }
+        
+    # Vectorized Price Download for single ticker
+    query_ticker = ticker if ".NS" in ticker or ".BO" in ticker else f"{ticker}.NS"
+    df = yf.download(query_ticker, period="5y", progress=False)
+    if df.empty: return {"status": "error", "message": "Failed to fetch data"}
+    
+    try:
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [col[0] for col in df.columns]
+        
+        closes = df['Close']
+        returns = closes.pct_change()
+        
+        vol = returns.rolling(window=20).std().iloc[-1] * np.sqrt(252)
+        rolling_max = closes.rolling(window=252, min_periods=1).max()
+        dd = ((closes / rolling_max) - 1).iloc[-1]
+        
+        price_risk = np.clip(((vol/0.4)*50) + (abs(dd/0.3)*50), 0, 100)
+        de_score = (fund_data["de"] / 200.0) * 100
+        margin_score = 100 - (fund_data["margin"] * 100 * 2)
+        fundamental_risk = np.clip((0.6 * de_score) + (0.4 * margin_score), 0, 100)
+        
+        master_score = (0.5 * price_risk) + (0.5 * fundamental_risk)
+        
+        result = {
+            "Ticker": db_ticker,
+            "Risk": round(master_score, 2),
+            "Price_Risk": round(price_risk, 2),
+            "Fund_Risk": round(fundamental_risk, 2)
+        }
+        return {"status": "success", "data": [result]}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @router.get("/scan/bulk")
 async def scan_market_bulk(tickers: str = Query(..., description="Comma-separated tickers"), db: asyncpg.Connection = Depends(get_db)):
@@ -91,12 +185,12 @@ async def scan_market_bulk(tickers: str = Query(..., description="Comma-separate
     return {"status": "success", "scanned_count": len(sorted_results), "data": sorted_results}
 
 @router.get("/scan/history/{ticker}")
-async def get_ticker_history(ticker: str):
+async def get_ticker_history(ticker: str, period: str = "3mo"):
     # Ensure standard yfinance ticker format (e.g. .NS for India)
-    query_ticker = ticker if ".NS" in ticker else f"{ticker}.NS"
+    query_ticker = ticker if ".NS" in ticker or ".BO" in ticker else f"{ticker}.NS"
     try:
-        # Download 3 months of daily data
-        df = yf.download(query_ticker, period="3mo", progress=False)
+        # Download data for requested period
+        df = yf.download(query_ticker, period=period, progress=False)
         if df.empty:
             return {"status": "error", "message": "No data found"}
         
