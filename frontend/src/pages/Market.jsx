@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Activity, Filter, AlertCircle, TrendingUp, BarChart3, Shield, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, Activity, Filter, AlertCircle, TrendingUp, BarChart3, Shield } from 'lucide-react';
 import CandlestickChart from '../components/CandlestickChart';
 import '../index.css';
 
@@ -155,8 +155,8 @@ export default function Market() {
                       >
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{ color: 'var(--text-muted)' }}>
-                              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                              {isExpanded ? '▼' : '▶'}
                             </div>
                             <div style={{
                               width: '32px', height: '32px', borderRadius: '8px',
