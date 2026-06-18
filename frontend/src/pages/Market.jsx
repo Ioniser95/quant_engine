@@ -21,7 +21,7 @@ export default function Market() {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
 
   // Chart controls
-  const [chartPeriod, setChartPeriod] = useState('3mo');
+  const [chartPeriod, setChartPeriod] = useState('6mo');
   const [chartType, setChartType] = useState('candle');
 
   useEffect(() => {
@@ -167,16 +167,23 @@ export default function Market() {
           <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
             Search NSE Stock
           </label>
-          <div className="input-group">
-            <Search size={16} />
+          <div className="input-group" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <div style={{ position: 'absolute', left: '14px', display: 'flex', alignItems: 'center', pointerEvents: 'none', color: 'var(--text-muted)' }}>
+              <Search size={16} />
+            </div>
             <input 
               type="text" 
               placeholder="e.g. Reliance, TCS, Zomato..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => { if (searchResults.length > 0) setShowSearchDropdown(true); }}
+              style={{ width: '100%', paddingLeft: '40px', paddingRight: '40px' }}
             />
-            {isSearching && <span style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.2)', borderTopColor: 'var(--accent)', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite', position: 'absolute', right: '14px' }}></span>}
+            {isSearching && (
+              <div style={{ position: 'absolute', right: '14px', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                <span style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.2)', borderTopColor: 'var(--accent)', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite' }}></span>
+              </div>
+            )}
           </div>
           
           {showSearchDropdown && searchResults.length > 0 && (
@@ -302,7 +309,7 @@ export default function Market() {
                           <td colSpan="4" style={{ padding: '0 24px 24px 24px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-root)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', padding: '0 4px' }}>
                               <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-elevated)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                                {['3mo', '6mo', '1y', '5y', 'max'].map(period => (
+                                {['1d', '1wk', '6mo', '1y', '5y', 'max'].map(period => (
                                   <button
                                     key={period}
                                     onClick={() => setChartPeriod(period)}

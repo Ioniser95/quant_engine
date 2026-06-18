@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowUpRight, ArrowDownRight, TrendingUp, Wallet, IndianRupee, BarChart3, PieChart, Activity } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, TrendingUp, Wallet, IndianRupee, BarChart3, PieChart, Activity, ChevronDown } from 'lucide-react';
+import CandlestickChart from '../components/CandlestickChart';
 import '../index.css';
 
 export default function Portfolio() {
@@ -9,6 +10,13 @@ export default function Portfolio() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Chart state
+  const [expandedRow, setExpandedRow] = useState(null);
+  const [chartData, setChartData] = useState([]);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [timeframe, setTimeframe] = useState('6mo');
+  const [chartType, setChartType] = useState('Candle');
 
   useEffect(() => {
     const fetchHoldings = async () => {
@@ -37,9 +45,55 @@ export default function Portfolio() {
     fetchHoldings();
   }, []);
 
+  useEffect(() => {
+    const token = localStorage.getItem('quant_token');
+    if (!token) return;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/api/ws/portfolio?token=${token}`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'price_update' && msg.prices) {
+          setData(prev => {
+            const newHoldings = prev.holdings.map(h => {
+              if (msg.prices[h.ticker]) {
+                const newLtp = msg.prices[h.ticker];
+                const newPnl = (newLtp - h.avgPrice) * h.shares;
+                const newPnlPct = h.avgPrice > 0 ? ((newLtp / h.avgPrice) - 1) * 100 : 0;
+                return { ...h, ltp: newLtp, pnl: newPnl, pnlPct: newPnlPct };
+              }
+              return h;
+            });
+            
+            // Recalculate stats
+            let newCurrent = 0;
+            newHoldings.forEach(h => newCurrent += (h.ltp * h.shares));
+            const newReturns = newCurrent - prev.stats.invested;
+            const newReturnsPct = prev.stats.invested > 0 ? (newReturns / prev.stats.invested) * 100 : 0;
+            
+            return {
+              holdings: newHoldings,
+              stats: { ...prev.stats, current: newCurrent, returns: newReturns, returnsPct: newReturnsPct }
+            };
+          });
+        }
+      } catch (e) {
+        console.error("WS parse error", e);
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
+
   const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
-  const handleSell = async (ticker, maxShares) => {
+  const handleSell = async (ticker, maxShares, e) => {
+    e.stopPropagation();
     const qtyStr = window.prompt(`How many shares of ${ticker} would you like to sell? (Max: ${maxShares})`, maxShares);
     if (!qtyStr) return;
     
@@ -67,6 +121,36 @@ export default function Portfolio() {
       window.location.reload();
     } catch (err) {
       alert(err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (expandedRow === null) return;
+    const ticker = data.holdings[expandedRow].ticker;
+    const fetchHistory = async () => {
+      setChartLoading(true);
+      try {
+        const res = await fetch(`/api/scan/history/${ticker}?period=${timeframe}`);
+        const json = await res.json();
+        if (json.status === "success") {
+          setChartData(json.data);
+        } else {
+          setChartData([]);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setChartLoading(false);
+      }
+    };
+    fetchHistory();
+  }, [expandedRow, timeframe, data.holdings]);
+
+  const toggleRow = (index) => {
+    if (expandedRow === index) {
+      setExpandedRow(null);
+    } else {
+      setExpandedRow(index);
     }
   };
 
@@ -158,9 +242,16 @@ export default function Portfolio() {
                 </thead>
                 <tbody>
                   {holdings.map((h, i) => (
-                    <tr key={i}>
+                    <React.Fragment key={i}>
+                    <tr 
+                      style={{ cursor: 'pointer', background: expandedRow === i ? 'rgba(255,255,255,0.03)' : 'transparent' }}
+                      onClick={() => toggleRow(i)}
+                      onMouseOver={(e) => e.currentTarget.style.background = expandedRow === i ? 'rgba(255,255,255,0.03)' : 'var(--bg-hover)'}
+                      onMouseOut={(e) => e.currentTarget.style.background = expandedRow === i ? 'rgba(255,255,255,0.03)' : 'transparent'}
+                    >
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <ChevronDown size={16} style={{ color: 'var(--text-muted)', transform: expandedRow === i ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
                           <div style={{
                             width: '32px', height: '32px', borderRadius: '8px',
                             background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
@@ -191,12 +282,51 @@ export default function Portfolio() {
                         <button 
                           className="btn-secondary" 
                           style={{ padding: '6px 12px', fontSize: '0.75rem', borderColor: 'var(--danger-muted)', color: 'var(--danger)' }}
-                          onClick={() => handleSell(h.ticker, h.shares)}
+                          onClick={(e) => handleSell(h.ticker, h.shares, e)}
                         >
                           Sell
                         </button>
                       </td>
                     </tr>
+                    {expandedRow === i && (
+                      <tr>
+                        <td colSpan="6" style={{ padding: '0', background: 'rgba(0,0,0,0.2)' }}>
+                          <div style={{ padding: '24px', borderTop: '1px solid var(--border-subtle)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                {['1D', '1WK', '6MO', '1Y', '5Y', 'ALL'].map(tf => (
+                                  <button
+                                    key={tf}
+                                    onClick={() => setTimeframe(tf.toLowerCase())}
+                                    className={timeframe === tf.toLowerCase() ? 'btn-primary' : 'btn-secondary'}
+                                    style={{ padding: '4px 12px', fontSize: '0.75rem' }}
+                                  >
+                                    {tf}
+                                  </button>
+                                ))}
+                              </div>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button onClick={() => setChartType('Candle')} className={chartType === 'Candle' ? 'btn-primary' : 'btn-secondary'} style={{ padding: '4px 12px', fontSize: '0.75rem' }}>🕯 Candle</button>
+                                <button onClick={() => setChartType('Line')} className={chartType === 'Line' ? 'btn-primary' : 'btn-secondary'} style={{ padding: '4px 12px', fontSize: '0.75rem' }}>📈 Line</button>
+                              </div>
+                            </div>
+                            
+                            {chartLoading ? (
+                              <div style={{ height: '400px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-muted)' }}>
+                                <span style={{ width: '20px', height: '20px', border: '2px solid var(--border-subtle)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }}></span>
+                              </div>
+                            ) : chartData.length > 0 ? (
+                              <CandlestickChart data={chartData} type={chartType} height={400} />
+                            ) : (
+                              <div style={{ height: '400px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-muted)' }}>
+                                No historical data found
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>

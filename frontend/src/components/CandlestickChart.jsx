@@ -3,6 +3,7 @@ import { createChart, CandlestickSeries, LineSeries, ColorType } from 'lightweig
 
 export default function CandlestickChart({ data, type = 'candle', width = '100%', height = 300 }) {
   const chartContainerRef = useRef();
+  const chartRef = useRef(null);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -25,6 +26,8 @@ export default function CandlestickChart({ data, type = 'candle', width = '100%'
         borderColor: 'rgba(255, 255, 255, 0.1)',
       },
     });
+    
+    chartRef.current = chart;
 
     let series;
     if (type === 'line') {
@@ -84,11 +87,56 @@ export default function CandlestickChart({ data, type = 'candle', width = '100%'
     };
   }, [data, height, type]);
 
+  const handleZoomIn = () => {
+    if (!chartRef.current) return;
+    const timeScale = chartRef.current.timeScale();
+    const currentRange = timeScale.getVisibleLogicalRange();
+    if (currentRange) {
+        const span = currentRange.to - currentRange.from;
+        timeScale.setVisibleLogicalRange({
+           from: currentRange.from + span * 0.1,
+           to: currentRange.to - span * 0.1
+        });
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (!chartRef.current) return;
+    const timeScale = chartRef.current.timeScale();
+    const currentRange = timeScale.getVisibleLogicalRange();
+    if (currentRange) {
+        const span = currentRange.to - currentRange.from;
+        timeScale.setVisibleLogicalRange({
+           from: currentRange.from - span * 0.1,
+           to: currentRange.to + span * 0.1
+        });
+    }
+  };
+
+  const handleReset = () => {
+    if (!chartRef.current) return;
+    chartRef.current.timeScale().fitContent();
+  };
+
   return (
-    <div
-      ref={chartContainerRef}
-      style={{ width, height, position: 'relative', marginTop: '16px', borderRadius: '8px', overflow: 'hidden' }}
-      className="candlestick-chart-container fade-in"
-    />
+    <div style={{ position: 'relative', width, height, marginTop: '16px' }} className="candlestick-chart-wrapper">
+      <div
+        style={{
+          position: 'absolute', bottom: '30px', left: '5px', zIndex: 10,
+          display: 'flex', gap: '6px', background: 'rgba(30, 30, 30, 0.6)', padding: '4px', borderRadius: '8px',
+          backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)'
+        }}
+      >
+        <button onClick={handleZoomIn} style={{ background: 'transparent', color: 'var(--text-primary)', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', fontSize: '1rem', fontWeight: 'bold' }}>+</button>
+        <button onClick={handleZoomOut} style={{ background: 'transparent', color: 'var(--text-primary)', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', fontSize: '1.2rem', fontWeight: 'bold', lineHeight: '1rem' }}>-</button>
+        <button onClick={handleReset} style={{ background: 'transparent', color: 'var(--text-primary)', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: '600' }}>RESET</button>
+      </div>
+      <div
+        ref={chartContainerRef}
+        style={{ width: '100%', height: '100%', borderRadius: '8px', overflow: 'hidden' }}
+        className="candlestick-chart-container fade-in"
+      />
+    </div>
   );
 }

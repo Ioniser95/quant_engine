@@ -41,7 +41,8 @@ async def search_ticker(query: str, db: asyncpg.Connection = Depends(get_db)):
             f"%{query}%"
         )
         for row in local_rows:
-            sym = f"{row['ticker']}.NS"
+            t = row['ticker']
+            sym = t if t.endswith('.NS') or t.endswith('.BO') else f"{t}.NS"
             seen_symbols.add(sym)
             results.append({
                 "symbol": sym,
@@ -111,7 +112,7 @@ async def analyze_hybrid_ticker(ticker: str, db: asyncpg.Connection = Depends(ge
         }
         
     # Vectorized Price Download for single ticker
-    query_ticker = ticker if ".NS" in ticker or ".BO" in ticker else f"{ticker}.NS"
+    query_ticker = f"{db_ticker}.NS"
     df = yf.download(query_ticker, period="5y", progress=False)
     if df.empty: return {"status": "error", "message": "Failed to fetch data"}
     
@@ -207,12 +208,20 @@ async def scan_market_bulk(tickers: str = Query(..., description="Comma-separate
     return {"status": "success", "scanned_count": len(sorted_results), "data": sorted_results}
 
 @router.get("/scan/history/{ticker}")
-async def get_ticker_history(ticker: str, period: str = "3mo"):
-    # Ensure standard yfinance ticker format (e.g. .NS for India)
-    query_ticker = ticker if ".NS" in ticker or ".BO" in ticker else f"{ticker}.NS"
+async def get_ticker_history(ticker: str, period: str = "6mo"):
+    # Ensure standard yfinance ticker format by building it cleanly
+    db_ticker = ticker.replace(".NS", "").replace(".BO", "")
+    query_ticker = f"{db_ticker}.NS"
     try:
-        # Download data for requested period
-        df = yf.download(query_ticker, period=period, progress=False)
+        is_intraday = period in ["1d", "1wk"]
+        
+        if period == "1d":
+            df = yf.download(query_ticker, period="1d", interval="5m", progress=False)
+        elif period == "1wk":
+            df = yf.download(query_ticker, period="5d", interval="15m", progress=False)
+        else:
+            df = yf.download(query_ticker, period=period, progress=False)
+            
         if df.empty:
             return {"status": "error", "message": "No data found"}
         
@@ -223,11 +232,14 @@ async def get_ticker_history(ticker: str, period: str = "3mo"):
         df = df.reset_index()
         date_col = 'Date' if 'Date' in df.columns else 'Datetime' if 'Datetime' in df.columns else df.columns[0]
         
-        # Format for TradingView Lightweight Charts: { time: 'YYYY-MM-DD', open, high, low, close }
+        # Format for TradingView Lightweight Charts
         chart_data = []
         for _, row in df.iterrows():
+            # UTCTimestamp for intraday, YYYY-MM-DD string for daily
+            t = int(row[date_col].timestamp()) if is_intraday else row[date_col].strftime('%Y-%m-%d')
+            
             chart_data.append({
-                "time": row[date_col].strftime('%Y-%m-%d'),
+                "time": t,
                 "open": round(float(row['Open']), 2),
                 "high": round(float(row['High']), 2),
                 "low": round(float(row['Low']), 2),

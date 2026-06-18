@@ -25,7 +25,7 @@ async def close_db_pool():
     global pool
     if pool:
         await pool.close()
-        print("✅ Database connection pool closed")
+        print("Database connection pool closed")
 
 from fastapi import HTTPException
 async def get_db():
