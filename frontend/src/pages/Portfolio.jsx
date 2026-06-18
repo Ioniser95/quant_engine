@@ -144,7 +144,7 @@ export default function Portfolio() {
       }
     };
     fetchHistory();
-  }, [expandedRow, timeframe, data.holdings]);
+  }, [expandedRow, timeframe]); // REMOVED data.holdings to prevent reload bug
 
   const toggleRow = (index) => {
     if (expandedRow === index) {
@@ -316,7 +316,7 @@ export default function Portfolio() {
                                 <span style={{ width: '20px', height: '20px', border: '2px solid var(--border-subtle)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }}></span>
                               </div>
                             ) : chartData.length > 0 ? (
-                              <CandlestickChart data={chartData} type={chartType} height={400} />
+                              <CandlestickChart data={chartData} type={chartType} height={400} livePrice={h.ltp} />
                             ) : (
                               <div style={{ height: '400px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-muted)' }}>
                                 No historical data found

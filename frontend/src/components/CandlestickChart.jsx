@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { createChart, CandlestickSeries, LineSeries, ColorType } from 'lightweight-charts';
 
-export default function CandlestickChart({ data, type = 'candle', width = '100%', height = 300 }) {
+export default function CandlestickChart({ data, type = 'candle', width = '100%', height = 300, livePrice }) {
   const chartContainerRef = useRef();
   const chartRef = useRef(null);
+  const seriesRef = useRef(null);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -71,6 +72,8 @@ export default function CandlestickChart({ data, type = 'candle', width = '100%'
         chart.timeScale().fitContent();
       }
     }
+    
+    seriesRef.current = series;
 
     const resizeObserver = new ResizeObserver(entries => {
       if (entries.length === 0 || entries[0].target !== chartContainerRef.current) {
@@ -87,6 +90,29 @@ export default function CandlestickChart({ data, type = 'candle', width = '100%'
       chart.remove();
     };
   }, [data, height, type]);
+
+  useEffect(() => {
+    if (livePrice !== undefined && livePrice !== null && seriesRef.current && data && data.length > 0) {
+      const sortedData = [...data].sort((a, b) => new Date(a.time) - new Date(b.time));
+      const lastPoint = sortedData[sortedData.length - 1];
+      const time = lastPoint.time;
+      
+      const chartType = type.toLowerCase();
+      if (chartType === 'line') {
+        seriesRef.current.update({ time, value: livePrice });
+      } else {
+        const newHigh = Math.max(lastPoint.high, livePrice);
+        const newLow = Math.min(lastPoint.low, livePrice);
+        seriesRef.current.update({
+          time,
+          open: lastPoint.open,
+          high: newHigh,
+          low: newLow,
+          close: livePrice
+        });
+      }
+    }
+  }, [livePrice, type, data]);
 
   const handleZoomIn = () => {
     if (!chartRef.current) return;
