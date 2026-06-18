@@ -9,7 +9,7 @@ import RoboAdvisor from './pages/RoboAdvisor';
 import Market from './pages/Market';
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('quant_token'));
 
   return (
     <BrowserRouter>
