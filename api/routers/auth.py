@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from api.models.schemas import UserCreate, UserLogin, ForgotPasswordReq, ChangePasswordReq
+from api.models.schemas import UserCreate, UserLogin, ForgotPasswordReq, ChangePasswordReq, UserUpdate
 from api.core.security import get_password_hash, verify_password, create_access_token, get_current_user
 from api.core.database import get_db
 import string
@@ -14,12 +14,37 @@ async def register_user(user: UserCreate, db: asyncpg.Connection = Depends(get_d
     hashed_password = get_password_hash(user.password)
     try:
         await db.execute(
-            "INSERT INTO users (email, hashed_password) VALUES ($1, $2)",
-            user.email, hashed_password
+            "INSERT INTO users (name, email, hashed_password) VALUES ($1, $2, $3)",
+            user.name, user.email, hashed_password
         )
         return {"status": "success", "message": "Investor profile created securely."}
     except asyncpg.UniqueViolationError:
         raise HTTPException(status_code=400, detail="An account with this email already exists.")
+
+@router.get("/me")
+async def get_user_profile(
+    current_user: dict = Depends(get_current_user), 
+    db: asyncpg.Connection = Depends(get_db)
+):
+    record = await db.fetchrow(
+        "SELECT id, name, email, created_at, cash_balance FROM users WHERE id = $1", 
+        current_user["user_id"]
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="User not found")
+    return dict(record)
+
+@router.put("/update")
+async def update_user_profile(
+    user_update: UserUpdate,
+    current_user: dict = Depends(get_current_user), 
+    db: asyncpg.Connection = Depends(get_db)
+):
+    await db.execute(
+        "UPDATE users SET name = $1 WHERE id = $2",
+        user_update.name, current_user["user_id"]
+    )
+    return {"status": "success", "message": "Profile updated successfully"}
 
 @router.post("/login")
 async def login_user(user: UserLogin, db: asyncpg.Connection = Depends(get_db)):

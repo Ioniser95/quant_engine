@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Briefcase, Zap, ShieldCheck, CheckCircle, Flame, Scale, Sparkles, TrendingUp, ArrowRight } from 'lucide-react';
+import { Target, Briefcase, Zap, ShieldCheck, CheckCircle, Flame, Scale, Sparkles, TrendingUp, ArrowRight, Wallet, Activity } from 'lucide-react';
 import '../index.css';
 
 export default function RoboAdvisor() {
@@ -11,6 +11,7 @@ export default function RoboAdvisor() {
   const [basket, setBasket] = useState(null);
   const [tradeExecuted, setTradeExecuted] = useState(false);
   const [cashBalance, setCashBalance] = useState(0);
+  const [portfolioStats, setPortfolioStats] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,20 +38,27 @@ export default function RoboAdvisor() {
   const generateBasket = async () => {
     setLoading(true);
     setTradeExecuted(false);
-    const randomStocks = [...universe].sort(() => 0.5 - Math.random()).slice(0, 15);
-    const tickers = randomStocks.map(s => s.ticker).join(',');
+    setPortfolioStats(null);
     try {
-      const res = await fetch(`/api/scan/bulk?tickers=${tickers}`);
+      const res = await fetch('/api/portfolio/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ capital, risk_tolerance: riskTolerance })
+      });
       const data = await res.json();
-      const top5 = data.data.slice(0, 5);
-      const curated = top5.map(stock => ({
-        ...stock,
-        weight: 20,
-        allocated: capital / 5,
-      }));
-      setBasket(curated);
+      if (!res.ok) throw new Error(data.detail || "Engine failed to optimize.");
+      
+      setBasket(data.allocations);
+      setPortfolioStats({
+        optimal_capital: data.optimal_capital,
+        requested_capital: data.requested_capital,
+        return_pct: data.expected_annual_return_pct,
+        volatility_pct: data.expected_annual_volatility_pct,
+        sharpe: data.sharpe_ratio,
+        objective: data.optimization_objective
+      });
     } catch (err) {
-      alert("Engine disconnected. Check your backend terminal.");
+      alert(err.message);
     } finally {
       setLoading(false);
     }
@@ -197,28 +205,58 @@ export default function RoboAdvisor() {
       {/* ── Results ── */}
       {basket && !tradeExecuted && (
         <div className="fade-up" style={{ animationDelay: '0.1s' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Target size={16} style={{ color: 'var(--text-muted)' }} /> Optimized Basket
-            </h2>
-            <span className="badge badge-success">
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }}></span>
-              Ready
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', background: 'var(--bg-elevated)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-subtle)', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                <Wallet size={18} /> Projected Returns: <span style={{ color: 'var(--success)', fontWeight: '700', fontSize: '1rem' }}>{portfolioStats?.return_pct}% p.a.</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                <Activity size={18} /> Volatility: <span style={{ color: 'var(--danger)', fontWeight: '700', fontSize: '1rem' }}>{portfolioStats?.volatility_pct}%</span>
+              </div>
+            </div>
+            <button 
+              className="btn-primary" 
+              onClick={executeTrade}
+              disabled={loading}
+              style={{ width: 'auto', minWidth: '200px', padding: '12px 24px' }}
+            >
+              {loading ? 'Executing...' : 'Execute Full Strategy'}
+            </button>
           </div>
-          <div className="table-container" style={{ marginBottom: '16px' }}>
+          
+          {portfolioStats?.optimal_capital !== portfolioStats?.requested_capital && (
+            <div style={{ marginTop: '16px', padding: '16px', background: 'var(--warning-muted)', border: '1px solid rgba(234, 179, 8, 0.2)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h4 style={{ margin: 0, color: 'var(--warning)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Sparkles size={14} /> Optimal Capital Recommendation
+                </h4>
+                <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  To perfectly execute this algorithm using whole shares, we recommend adjusting your investment to <strong>{fmtINR(portfolioStats?.optimal_capital)}</strong>.
+                </p>
+              </div>
+              <button 
+                className="btn-secondary" 
+                style={{ background: 'var(--warning)', color: '#000', border: 'none', padding: '8px 16px', fontSize: '0.8rem', fontWeight: '600' }}
+                onClick={() => setCapital(portfolioStats?.optimal_capital)}
+              >
+                Apply {fmtINR(portfolioStats?.optimal_capital)}
+              </button>
+            </div>
+          )}
+
+          <div className="table-container" style={{ marginTop: '16px', marginBottom: '16px' }}>
             <table>
               <thead>
                 <tr>
                   <th>Asset</th>
-                  <th>Risk Score</th>
                   <th>Weight</th>
+                  <th>Price</th>
+                  <th>Shares</th>
                   <th style={{ textAlign: 'right' }}>Allocation</th>
                 </tr>
               </thead>
               <tbody>
                 {basket.map((s) => {
-                  const rc = getRiskColor(s.Risk);
                   return (
                     <tr key={s.Ticker}>
                       <td>
@@ -234,16 +272,11 @@ export default function RoboAdvisor() {
                           <span style={{ fontWeight: '600' }}>{s.Ticker}</span>
                         </div>
                       </td>
-                      <td>
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', padding: '3px 10px',
-                          borderRadius: '9999px', fontSize: '0.8rem', fontWeight: '600',
-                          background: rc.bg, color: rc.color, border: `1px solid ${rc.border}`,
-                        }}>{s.Risk}</span>
-                      </td>
-                      <td style={{ color: 'var(--text-secondary)' }}>{s.weight}%</td>
+                      <td style={{ color: 'var(--text-secondary)' }}>{s.Weight}%</td>
+                      <td style={{ color: 'var(--text-secondary)' }}>{fmtINR(s.Price)}</td>
+                      <td style={{ color: 'var(--text-secondary)' }}>{s.Shares}</td>
                       <td style={{ textAlign: 'right', fontWeight: '600', color: 'var(--text-primary)' }}>
-                        {fmtINR(s.allocated)}
+                        {fmtINR(s.ActualAmount)}
                       </td>
                     </tr>
                   );
@@ -251,9 +284,6 @@ export default function RoboAdvisor() {
               </tbody>
             </table>
           </div>
-          <button className="btn-success" onClick={executeTrade}>
-            <CheckCircle size={15} /> Execute Paper Trade
-          </button>
         </div>
       )}
 

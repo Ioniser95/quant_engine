@@ -7,6 +7,7 @@ import Portfolio from './pages/Portfolio';
 // We will add these two files in the next steps!
 import RoboAdvisor from './pages/RoboAdvisor';
 import Market from './pages/Market';
+import Account from './pages/Account';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('quant_token'));
@@ -24,8 +25,9 @@ export default function App() {
         {isAuthenticated && (
           <Route element={<Layout />}>
             <Route path="/portfolio" element={<Portfolio />} />
-            {<Route path="/advisor" element={<RoboAdvisor />} /> }
-            {<Route path="/market" element={<Market />} /> }
+            <Route path="/market" element={<Market />} />
+            <Route path="/advisor" element={<RoboAdvisor />} />
+            <Route path="/account" element={<Account />} />
           </Route>
         )}
 

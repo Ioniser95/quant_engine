@@ -75,14 +75,31 @@ def optimize_portfolio(tickers, risk_tolerance="Medium", investment_amount=10000
     
     # Format the output
     allocations = []
+    optimal_capital = 0.0
+    
+    # We need the most recent close prices to calculate shares
+    latest_prices = prices.iloc[-1]
+    
     for idx, ticker in enumerate(prices.columns):
         weight = optimal_weights[idx]
         if weight > 0.001: # Filter out near-zero allocations (e.g. 0.000000001%)
-            allocations.append({
-                "Ticker": ticker.replace(".NS", ""),
-                "Weight": round(weight * 100, 2),
-                "Amount": round(weight * investment_amount, 2)
-            })
+            price = float(latest_prices[ticker])
+            target_amount = weight * investment_amount
+            shares = int(np.floor(target_amount / price))
+            
+            # Recalculate the actual invested amount based on whole shares
+            actual_amount = shares * price
+            optimal_capital += actual_amount
+            
+            if shares > 0:
+                allocations.append({
+                    "Ticker": ticker.replace(".NS", ""),
+                    "Weight": round(weight * 100, 2),
+                    "TargetAmount": round(target_amount, 2),
+                    "Price": round(price, 2),
+                    "Shares": shares,
+                    "ActualAmount": round(actual_amount, 2)
+                })
             
     # Sort by highest allocation
     allocations = sorted(allocations, key=lambda x: x["Weight"], reverse=True)
@@ -93,5 +110,7 @@ def optimize_portfolio(tickers, risk_tolerance="Medium", investment_amount=10000
         "expected_annual_return_pct": round(expected_return * 100, 2),
         "expected_annual_volatility_pct": round(expected_vol * 100, 2),
         "sharpe_ratio": round(sharpe, 2),
+        "optimal_capital": round(optimal_capital, 2),
+        "requested_capital": investment_amount,
         "allocations": allocations
     }

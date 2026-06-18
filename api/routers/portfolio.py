@@ -134,7 +134,7 @@ async def execute_trade(req: TradeReq, current_user: dict = Depends(get_current_
         
     for item in req.basket:
         ticker = item["Ticker"]
-        allocated = float(item["allocated"])
+        allocated = float(item.get("TargetAmount", item.get("allocated", 0)))
         price = latest_prices.get(ticker + ".NS")
         if pd.isna(price) or price is None:
             continue

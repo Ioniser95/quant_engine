@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { PieChart, Activity, Cpu, LogOut, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PieChart, Activity, Cpu, LogOut, TrendingUp, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import '../index.css';
 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [
+    { name: 'Account', path: '/account', icon: <User size={18} /> },
     { name: 'Portfolio', path: '/portfolio', icon: <PieChart size={18} /> },
     { name: 'Market Scanner', path: '/market', icon: <Activity size={18} /> },
     { name: 'Robo-Advisor', path: '/advisor', icon: <Cpu size={18} /> },

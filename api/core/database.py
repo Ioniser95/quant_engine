@@ -40,5 +40,7 @@ async def get_db():
     try:
         async with pool.acquire() as conn:
             yield conn
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB Acquire Error: {str(e)}")
