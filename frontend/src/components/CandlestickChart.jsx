@@ -30,7 +30,8 @@ export default function CandlestickChart({ data, type = 'candle', width = '100%'
     chartRef.current = chart;
 
     let series;
-    if (type === 'line') {
+    const chartType = type.toLowerCase();
+    if (chartType === 'line') {
       series = chart.addSeries(LineSeries, {
         color: '#8b5cf6', // accent color
         lineWidth: 2,
@@ -61,7 +62,7 @@ export default function CandlestickChart({ data, type = 'candle', width = '100%'
       }
       
       if (uniqueData.length > 0) {
-        if (type === 'line') {
+        if (chartType === 'line') {
           // Line series requires only time and value
           series.setData(uniqueData.map(d => ({ time: d.time, value: d.close })));
         } else {

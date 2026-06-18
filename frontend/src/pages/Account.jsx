@@ -129,7 +129,7 @@ export default function Account() {
 
       {/* Profile Card */}
       <div className="card-glow fade-up" style={{ padding: '32px', marginBottom: '24px', animationDelay: '0.08s' }}>
-        <div style={{ display: 'flex', gap: '28px', alignItems: 'flex-start' }}>
+        <div className="responsive-flex">
           
           {/* Avatar */}
           <div style={{
@@ -239,7 +239,7 @@ export default function Account() {
       </div>
 
       {/* Stats Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+      <div className="grid-cols-3">
         <div className="card fade-up" style={{ animationDelay: '0.16s' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500 }}>Member Since</span>

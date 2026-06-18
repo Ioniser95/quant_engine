@@ -116,7 +116,7 @@ export default function RoboAdvisor() {
           Investment Parameters
         </h2>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+        <div className="grid-cols-2" style={{ marginBottom: '24px' }}>
           {/* Capital */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
@@ -154,7 +154,7 @@ export default function RoboAdvisor() {
           <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '10px' }}>
             Risk Tolerance
           </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+          <div className="grid-cols-3">
             {riskOptions.map((opt) => {
               const active = riskTolerance === opt.key;
               return (

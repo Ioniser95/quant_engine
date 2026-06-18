@@ -188,7 +188,7 @@ export default function Portfolio() {
       </div>
 
       {/* Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+      <div className="grid-cols-4" style={{ marginBottom: '32px' }}>
         {[
           { label: 'Cash Balance', value: fmt(stats.cash_balance || 0), icon: <Wallet size={16} />, color: 'var(--success)' },
           { label: 'Current Value', value: fmt(stats.current), icon: <TrendingUp size={16} />, color: 'var(--accent)' },
@@ -218,7 +218,7 @@ export default function Portfolio() {
 
       {/* Main Content Grid: Holdings (Left) & Allocation (Right) */}
       {holdings.length > 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+        <div className="grid-cols-2-1">
           
           {/* LEFT: Holdings Table */}
           <div className="fade-up" style={{ animationDelay: '0.2s' }}>
@@ -228,8 +228,8 @@ export default function Portfolio() {
               </h2>
               <span className="badge badge-accent">{holdings.length} assets</span>
             </div>
-            <div className="table-container">
-              <table>
+            <div className="table-container" style={{ overflowX: 'auto' }}>
+              <table style={{ minWidth: '600px' }}>
                 <thead>
                   <tr>
                     <th>Stock</th>
